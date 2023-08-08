@@ -1,7 +1,10 @@
 # Transformers-in-Computer-Vision
-Implementation of different Transformer architectures for vision tasks such as ViT and Swin Transformer
-
+Implementation of different Transformer architectures for vision tasks. 
 Will soon features youtube tutorials on the different transformers/attention mechanisms
+Currently Features:
+1. ViT
+2. Swin Transformer
+
 
 Swin Transformer: 
 
