@@ -9,5 +9,6 @@ Swin Transformer:
 
 ViT:
 
-![image](https://github.com/nickd16/Transformers-in-Computer-Vision/assets/108239710/5cc4008e-5db8-40be-bf50-8f38995c095b)
+![image](https://github.com/nickd16/Transformers-in-Computer-Vision/assets/108239710/fcc0f03a-2e7c-41f1-b854-1ec1ab803c51)
+
 
