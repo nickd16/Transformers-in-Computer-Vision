@@ -3,8 +3,9 @@ Implementation of different Transformer architectures for vision tasks.
 Will soon features youtube tutorials on the different transformers/attention mechanisms.
 
 Currently Features:
-1. ViT
+1. Vision Transformer (ViT)
 2. Swin Transformer
+3. Hybrid Attention Transformer (HAT) (Coming soon...)
 
 
 Swin Transformer: 
