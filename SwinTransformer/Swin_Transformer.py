@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
-from data_utils import *
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import matplotlib.pyplot as plt
@@ -36,17 +35,14 @@ class PatchMerging(nn.Module):
         return self.layer_norm(self.linear(x))
 
 class RelativeEmbeddings(nn.Module):
-    def __init__(self, window_size=7, shift=False):
+    def __init__(self, window_size=7):
         super().__init__()
         B = nn.Parameter(torch.randn(2*window_size-1, 2*window_size-1))
         x = torch.arange(1,window_size+1,1/window_size)
-        x = x.int()
         x = (x[None, :]-x[:, None])
+        print(x.shape)
         y = torch.concat([torch.arange(1,window_size+1)] * window_size)
         y = (y[None, :]-y[:, None])
-        if shift:
-            x = torch.roll(x, (-window_size//2, -window_size//2), (0,1))
-            y = torch.roll(y, (-window_size//2, -window_size//2), (0,1))
         self.embeddings = nn.Parameter((B[x[:,:], y[:,:]]), requires_grad=False)
 
     def forward(self, x):
@@ -60,7 +56,7 @@ class ShiftedWindowMSA(nn.Module):
         self.window_size = window_size
         self.mask = mask
         self.proj1 = nn.Linear(embed_dim, 3*embed_dim)
-        self.embeddings = RelativeEmbeddings() if mask==False else RelativeEmbeddings(shift=True)
+        self.embeddings = RelativeEmbeddings() 
         self.proj2 = nn.Linear(embed_dim, embed_dim)
 
     def forward(self, x):
@@ -88,7 +84,7 @@ class ShiftedWindowMSA(nn.Module):
             att_scores[:, :, :, -1] += column_mask
 
         att = F.softmax(att_scores, dim=-1) @ V
-        x = rearrange(att, 'b H h w (m1 m2) E -> b (h m1) (w m2) (H E)', m1=7, m2=7)
+        x = rearrange(att, 'b H h w (m1 m2) E -> b (h m1) (w m2) (H E)', m1=self.window_size, m2=self.window_size)
 
         if self.mask:
             x = torch.roll(x, (self.window_size//2, self.window_size//2), (1,2))
