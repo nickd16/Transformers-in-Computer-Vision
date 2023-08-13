@@ -9,7 +9,7 @@ from sklearn.decomposition import PCA
 import math
 import time
 
-# SWMSA Input -> (B, H, W, C)
+# SWMSA Input -> (B, C, H, W)
 
 class ShiftedWindowMSA(nn.Module):
     def __init__(self, embed_dim, num_heads, window_size, mask=False):
@@ -19,15 +19,17 @@ class ShiftedWindowMSA(nn.Module):
         self.window_size = window_size
         self.mask = mask
         self.proj1 = nn.Linear(embed_dim, 3*embed_dim)
-        self.embeddings = RelativeSinusoidalEmbeddings()
         self.proj2 = nn.Linear(embed_dim, embed_dim)
+        self.embeddings = RelativeSinusoidalEmbeddings()
 
     def forward(self, x):
         h_dim = self.embed_dim / self.num_heads
+        height, width = x.shape[1:3]
+        x = rearrange(x, 'b c h w -> b (h w) c')
         x = self.proj1(x)
-        x = rearrange(x, 'b h w (c K) -> b h w c K', K=3)
+        x = rearrange(x, 'b (h w) (c K) -> b h w c K', K=3, h=height, w=width)
 
-        if x.shape[1] == 7:
+        if x.shape[1] == self.window_size:
             self.mask = False
         if self.mask:
             x = torch.roll(x, (-self.window_size//2, -self.window_size//2), dims=(1,2))
@@ -52,10 +54,13 @@ class ShiftedWindowMSA(nn.Module):
         if self.mask:
             x = torch.roll(x, (self.window_size//2, self.window_size//2), (1,2))
 
-        return self.proj2(x)
+        x = rearrange(x, 'b h w c -> b (h w) c')
+        x = self.proj2(x)
+        x = rearrange(x, 'b (h w) c -> b c h w', h=height, w=width)
+        return x
     
 class RelativeSinusoidalEmbeddings(nn.Module):
-    def __init__(self, window_size=7):
+    def __init__(self, window_size):
         super().__init__()
         C = 2*window_size-1
         B = torch.zeros(C, C)
@@ -95,7 +100,7 @@ class ChannelAttentionBlock(nn.Module):
         self.conv4 = nn.Conv2d(C//B, C, kernel_size=1)
         self.pooling = nn.AdaptiveAvgPool2d((1,1))
         self.gelu = nn.GELU()
-        self.relu = nn.ReLU()
+        self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
         r = self.conv2(self.gelu(self.conv1(x)))
@@ -104,7 +109,6 @@ class ChannelAttentionBlock(nn.Module):
         x = F.sigmoid(x)
         x = r * x
         return x
-
 
 # HAB Block Input -> (B, C, H, W)
 
@@ -125,7 +129,7 @@ class HybridAttentionBlock(nn.Module):
     def forward(self, x):
         height, width = x.shape[2:]
         norm = self.layer_norm(x)
-        norm = (self.alpha * self.CAB(norm)) + self.WMSA(norm.permute(0,2,3,1)).permute(0,3,1,2)
+        norm = (self.alpha * self.CAB(norm)) + self.WMSA(norm)
         x = self.dropout(x + norm)
         norm = self.layer_norm(x)
         norm = rearrange(norm, 'B C H W -> B (H W) C')
@@ -134,10 +138,36 @@ class HybridAttentionBlock(nn.Module):
         return self.dropout(x + norm)
   
 class OverlappingCrossAttention(nn.Module):
-    def __init__(self):
+    def __init__(self, embed_dim, num_heads, window_size, overlap_size):
         super().__init__()
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+        self.window_size = window_size
+        self.lambd = overlap_size
+        self.proj1 = nn.Linear(embed_dim, 3*embed_dim)
+        self.proj2 = nn.Linear(embed_dim, embed_dim)
+        self.embeddings = RelativeSinusoidalEmbeddings()
+        padding = int((overlap_size*window_size)/2)
+        self.Mo = int((1 + overlap_size) * window_size)
+        self.unfold = nn.Unfold(kernel_size=self.Mo, stride=window_size, padding=padding)
 
     def forward(self, x):
+        h_dim = self.embed_dim / self.num_heads
+        height, width = x.shape[2:4]
+        x = rearrange(x, 'b c h w -> b (h w) c')
+        x = self.proj1(x)
+        x = rearrange(x, 'b (h w) (c K) -> b h w c K', K=3, h=height, w=width)
+
+        Q, K, V = x.chunk(3, dim=4)
+        Q, K, V = Q.squeeze(-1), K.squeeze(-1), V.squeeze(-1)
+        Q = rearrange(Q, 'b (h m1) (w m2) (H E) -> b H h w (m1 m2) E', H=self.num_heads, m1=self.window_size, m2=self.window_size)
+        K, V = self.unfold(K.permute(0,3,1,2)), self.unfold(V.permute(0,3,1,2))
+        num_windows = int(math.sqrt(K.shape[2]))
+        K = rearrange(K, 'B (H c s1 s2) (h w) -> B H h w (s1 s2) c', H=self.num_heads, s1=self.Mo, s2=self.Mo, h=num_windows, w=num_windows)
+        V = rearrange(V, 'B (H c s1 s2) (h w) -> B H h w (s1 s2) c', H=self.num_heads, s1=self.Mo, s2=self.Mo, h=num_windows, w=num_windows)
+        
+        att_scores = (Q @ K.transpose(4,5)) / math.sqrt(h_dim)
+
         return x
     
 class CrossAttentionBlock(nn.Module):
@@ -155,10 +185,10 @@ class ResidualAttentionGroup(nn.Module):
         return x
 
 def main():
-    x = torch.zeros((64, 200, 224, 224))
-    CAB = ChannelAttentionBlock(C=200, B=2)
-    x = CAB(x)
-    print(x.shape)
+    x = torch.zeros((64, 30, 224, 224))
+    A = OverlappingCrossAttention(30, 6, 16, .5)
+    x = A(x)
+    # print(x.shape)
 
 if __name__ == '__main__':
     main()

@@ -10,8 +10,6 @@ import math
 import time
 
 
-
-window_size=32
 C = 2*window_size-1
 B = torch.zeros(C, C)
 positions = torch.arange(C).unsqueeze(1)
@@ -23,7 +21,4 @@ x = torch.arange(1,window_size+1,1/window_size)
 x = (x[None, :]-x[:, None]).int()
 y = torch.concat([torch.arange(1,window_size+1)] * window_size)
 y = (y[None, :]-y[:, None])
-B = B[x[:,:], y[:,:]]
-
-
-
+self.embeddings = nn.Parameter((B[x[:,:], y[:,:]]), requires_grad=False)
