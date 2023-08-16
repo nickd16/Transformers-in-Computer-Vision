@@ -206,7 +206,7 @@ class CrossAttentionBlock(nn.Module):
         return self.dropout(x + norm)
 
 class ResidualHybridAttentionGroup(nn.Module):
-    def __init__(self, embed_dim=30, window_size=16, num_heads=6, dropout=0.1, squeeze_factor=3, overlap_size=0.5, alpha=0.01):
+    def __init__(self, embed_dim, window_size=16, num_heads=6, dropout=0.1, squeeze_factor=3, overlap_size=0.5, alpha=0.01):
         super().__init__()
         self.HAB1 = HybridAttentionBlock(embed_dim, window_size, num_heads, squeeze_factor, alpha, dropout)
         self.HAB2 = HybridAttentionBlock(embed_dim, window_size, num_heads, squeeze_factor, alpha, dropout, shift=True)
@@ -224,20 +224,30 @@ class ResidualHybridAttentionGroup(nn.Module):
         return x
 
 class HAT_model(nn.Module):
-    def __init__(self, C=30):
+    def __init__(self, ratio, C=30):
         super().__init__()
-        self.conv1 = nn.Conv2d(3, C, padding=1)
-        self.conv2 = nn.Conv2d(C, C, padding=1)
-        self.RHAG = ResidualHybridAttentionGroup()
+        self.conv1 = nn.Conv2d(3, C, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(C, C, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(C, 64*(ratio**ratio), kernel_size=3, padding=1)
+        self.conv4 = nn.Conv2d(64, 3, kernel_size=3, padding=1)
+        self.relu = nn.ReLU(inplace=True)
+        self.RHAG = ResidualHybridAttentionGroup(C)
+        self.pixelshuffle = nn.PixelShuffle(2)
 
     def forward(self, x):
         y = self.conv1(x)
         x = self.RHAG(y)
         x = self.conv2(x) + y
+        x = self.relu(self.conv3(x))
+        x = self.pixelshuffle(x)
+        x = self.conv4(x)
+        print(x.shape)
         return x
 
 def main():
-    x = torch.zeros((1, 30, 224, 224)).cuda()
+    x = torch.zeros((1, 3, 224, 224)).cuda()
+    model = HAT_model(2).cuda()
+    model(x)
 
 if __name__ == '__main__':
     main()
