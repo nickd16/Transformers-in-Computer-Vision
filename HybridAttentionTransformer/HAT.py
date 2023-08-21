@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 import math
 import time
+import os
 
 # SWMSA Input -> (B, C, H, W)
 
@@ -60,7 +61,8 @@ class ShiftedWindowMSA(nn.Module):
         x = rearrange(x, 'b (h m1) (w m2) (H E) K -> b H h w (m1 m2) E K', H=self.num_heads, m1=self.window_size, m2=self.window_size)
         Q, K, V = x.chunk(3, dim=6)
         Q, K, V = Q.squeeze(-1), K.squeeze(-1), V.squeeze(-1)
-        att_scores = (Q @ K.transpose(4,5)) / math.sqrt(h_dim)
+        att_scores = (Q @ K.transpose(4,5)) 
+        att_scores /= math.sqrt(h_dim)
         att_scores = self.embeddings(att_scores)
 
         if self.mask:
@@ -172,7 +174,8 @@ class OverlappingCrossAttention(nn.Module):
         K = rearrange(K, 'B (H c s1 s2) (h w) -> B H h w (s1 s2) c', H=self.num_heads, s1=self.Mo, s2=self.Mo, h=num_windows, w=num_windows)
         V = rearrange(V, 'B (H c s1 s2) (h w) -> B H h w (s1 s2) c', H=self.num_heads, s1=self.Mo, s2=self.Mo, h=num_windows, w=num_windows)
         
-        att_scores = (Q @ K.transpose(4,5)) / math.sqrt(h_dim)
+        att_scores = (Q @ K.transpose(4,5)) 
+        att_scores /= math.sqrt(h_dim)
         att_scores = self.embeddings(att_scores)
         att = F.softmax(att_scores, dim=-1) @ V
         x = rearrange(att, 'b H h w (m1 m2) E -> b (h m1) (w m2) (H E)', m1=self.window_size, m2=self.window_size)
@@ -224,29 +227,32 @@ class ResidualHybridAttentionGroup(nn.Module):
         return x
 
 class HAT_model(nn.Module):
-    def __init__(self, ratio, C=30):
+    def __init__(self, ratio=2, C=64, embed_dim=180):
         super().__init__()
-        self.conv1 = nn.Conv2d(3, C, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(C, C, kernel_size=3, padding=1)
-        self.conv3 = nn.Conv2d(C, 64*(ratio**ratio), kernel_size=3, padding=1)
-        self.conv4 = nn.Conv2d(64, 3, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(3, embed_dim, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(embed_dim, embed_dim, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(embed_dim, C*(ratio**ratio), kernel_size=3, padding=1)
+        self.conv4 = nn.Conv2d(C, C*(ratio**ratio), kernel_size=3, padding=1)
+        self.output = nn.Conv2d(C, 3, kernel_size=3, padding=1)
         self.relu = nn.ReLU(inplace=True)
-        self.RHAG = ResidualHybridAttentionGroup(C)
-        self.pixelshuffle = nn.PixelShuffle(2)
+        self.RHAG = ResidualHybridAttentionGroup(embed_dim)
+        self.pixelshuffle1 = nn.PixelShuffle(ratio)
+        self.pixelshuffle2 = nn.PixelShuffle(ratio)
 
     def forward(self, x):
         y = self.conv1(x)
         x = self.RHAG(y)
         x = self.conv2(x) + y
         x = self.relu(self.conv3(x))
-        x = self.pixelshuffle(x)
+        x = self.pixelshuffle1(x)
         x = self.conv4(x)
-        print(x.shape)
+        x = self.pixelshuffle2(x)
+        x = self.output(x)
         return x
 
 def main():
     x = torch.zeros((1, 3, 224, 224)).cuda()
-    model = HAT_model(2).cuda()
+    model = HAT_model().cuda()
     model(x)
 
 if __name__ == '__main__':
