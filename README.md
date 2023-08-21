@@ -13,14 +13,15 @@ Original paper: https://arxiv.org/abs/2205.04437
 
 Architecture:
 
-![image](https://github.com/nickd16/Image-Upscaling-with-Hybrid-Attention-Transformer/assets/108239710/be1ffe75-31fa-400e-b83e-2412517982f3)
+![image](https://github.com/nickd16/Transformers-in-Computer-Vision/assets/108239710/5fe4230f-4d35-4d63-a0e2-376889a79d22)
+
 
 Results:
- 
-![image](https://github.com/nickd16/Image-Upscaling-with-Hybrid-Attention-Transformer/assets/108239710/cae184a2-3b49-47e1-8211-9f5675ffed95)
-![image](https://github.com/nickd16/Image-Upscaling-with-Hybrid-Attention-Transformer/assets/108239710/f6fba0ca-ac86-4b5e-a5b4-b6d08fcde33f)
-![image](https://github.com/nickd16/Image-Upscaling-with-Hybrid-Attention-Transformer/assets/108239710/16a37d83-8a19-404f-92a0-715547998a3b)
-![image](https://github.com/nickd16/Image-Upscaling-with-Hybrid-Attention-Transformer/assets/108239710/a07f033a-ede4-473c-9373-bf58bd60446f)
+
+![image](https://github.com/nickd16/Transformers-in-Computer-Vision/assets/108239710/500740a4-9dbd-4200-94f6-4c3be03720dc)
+![image](https://github.com/nickd16/Transformers-in-Computer-Vision/assets/108239710/1324cbfd-94ad-4367-b6d5-c265ac8c4648)
+![image](https://github.com/nickd16/Transformers-in-Computer-Vision/assets/108239710/a75cef94-8ea6-4cda-b75d-c73c74106092)
+![image](https://github.com/nickd16/Transformers-in-Computer-Vision/assets/108239710/be8c6209-2998-47f5-855b-0a2a47a2374a)
 
 # Swin Transformer: 
 Original paper: https://arxiv.org/abs/2103.14030
