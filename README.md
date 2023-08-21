@@ -10,6 +10,7 @@ Currently Features:
 # Hybrid Attention Transformer (HAT):
 Original paper: https://arxiv.org/abs/2205.04437
 
+
 Architecture:
 
 ![image](https://github.com/nickd16/Image-Upscaling-with-Hybrid-Attention-Transformer/assets/108239710/be1ffe75-31fa-400e-b83e-2412517982f3)
@@ -23,6 +24,7 @@ Results:
 
 # Swin Transformer: 
 Original paper: https://arxiv.org/abs/2103.14030
+
 
 Architecture:
 ![image](https://github.com/nickd16/Transformers-in-Computer-Vision/assets/108239710/59851228-a0c6-4b9a-b293-baea36eac55f)
