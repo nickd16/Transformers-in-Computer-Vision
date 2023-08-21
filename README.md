@@ -30,7 +30,7 @@ Architecture:
 ![image](https://github.com/nickd16/Transformers-in-Computer-Vision/assets/108239710/59851228-a0c6-4b9a-b293-baea36eac55f)
 
 
-#ViT:
+# ViT:
 Original paper: https://arxiv.org/abs/2010.11929
 
 Architecture:
